@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title></title>
+    <meta charset="utf-8"/>
+    <script src="jquery-3.1.1.min.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"
+          integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u"
+          crossorigin="anonymous">
+    <script src="dist/sweetalert.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="dist/sweetalert.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css?family=Russo+One');
+    </style>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        .marked {
+            content: url("images/Sure.png");
+        }
+
+        #board {
+            width: 100%;
+        }
+
+        img:hover {
+            cursor: pointer;
+            border: 0.5px solid blue;
+        }
+
+        .cell {
+            height: 40px;
+            width: 40px;
+            margin: 0 0 0px 0;
+        }
+
+        .bomb {
+            content: url("images/Bomb.png");
+        }
+
+        img {
+            height: 25px;
+            width: 25px;
+            border: 2px solid black;
+        }
+
+        .cover {
+            content: url("images/Cover.png");
+        }
+
+        body {
+            background-image: url("images/bombbackground.jpg");
+            background-repeat: no-repeat;
+            background-size: 100%;
+        }
+
+
+    </style>
+    <script>
+        $(function () {
+                var m;
+                var n;
+                var k = parseInt($('#gameSize').val());
+                var array = [];
+                var isShowAll;
+                var bomb = "images/Bomb.png";
+                var whiteBoard = "images/0.png";
+                var timer = null;
+                var markedBomb;
+                var isAllBombsMarkedVar;
+
+                function showBoard() {
+                    var board = $("#board")
+                    for (var i = 0; i < m; i++) {
+                        for (var j = 0; j < n; j++) {
+                            var img = $("<img/>");
+                            img.attr("src", array[i][j]);
+                            img.attr("class", "cell cover tile unopened")
+                            img.attr("row", i);
+                            img.attr("col", j);
+
+                            $("#board").append(img);
+                        }
+                        $("#board").append("<br/>");
+                    }
+
+                }
+
+                function getSizes() {
+                    var board = $("#board");
+                    board.empty();
+                    m = $('option:selected').attr('size1');
+                    n = $('option:selected').attr('size2');
+                    k = parseInt($('#gameSize').val());
+                }
+
+                function initializeArray() {
+                    array = [];
+                    for (var i = 0; i < m; i++) {
+                        var row = [];
+                        for (var j = 0; j < n; j++) {
+                            row.push(null);
+                        }
+                        array.push(row);
+                    }
+                }
+
+                function insertImages() {
+                    initializeArray();
+                    for (var i = 0; i < k; i++) {
+                        var x = Math.floor(Math.random() * m);
+                        var y = Math.floor(Math.random() * n);
+                        if (array[x][y] != null) {
+                            i--;
+                        } else {
+                            array[x][y] = bomb;
+                        }
+                    }
+
+                    for (var x = 0; x < m; x++) {
+                        for (var y = 0; y < n; y++) {
+                            if (array[x][y] != bomb) {
+                                var countBomb = getAdjacentBombs(x, y);
+                                array[x][y] = 'images/' + countBomb + '.png';
+                            }
+                        }
+                    }
+                    totalSeconds = 0;
+                }
+
+                function getAdjacentBombs(x, y) {
+                    var count = 0;
+                    if ((x - 1) >= 0 && array[x - 1][y] == bomb) count++;
+                    if ((x + 1) < m && array[x + 1][y] == bomb) count++;
+                    if ((y - 1) >= 0 && array[x][y - 1] == bomb) count++;
+                    if ((y + 1) < n && array[x][y + 1] == bomb) count++;
+                    if ((x - 1) >= 0 && (y - 1) >= 0 && array[x - 1][y - 1] == bomb) count++;
+                    if ((x + 1) < m && (y - 1) < n && array[x + 1][y - 1] == bomb) count++;
+                    if ((x - 1) >= 0 && (y + 1) < n && array[x - 1][y + 1] == bomb) count++;
+                    if ((x + 1) < m && (y + 1) < n && array[x + 1][y + 1] == bomb) count++;
+                    return count;
+                }
+
+                var totalSeconds = 0;
+
+                function startTimer() {
+                    var minutesLabel = document.getElementById("minutes");
+                    var secondsLabel = document.getElementById("seconds");
+
+                    if (!timer) {
+                        timer = setInterval(setTime, 1000);
+                    }
+
+
+                    function setTime() {
+                        ++totalSeconds;
+                        secondsLabel.innerHTML = pad(totalSeconds % 60);
+                        minutesLabel.innerHTML = pad(parseInt(totalSeconds / 60));
+                    }
+
+                    function pad(val) {
+                        var valString = val + "";
+                        if (valString.length < 2) {
+                            return "0" + valString;
+                        }
+                        else {
+                            return valString;
+                        }
+                    }
+                }
+
+                function setup() {
+                    getSizes();
+                    insertImages();
+                    showBoard();
+                    clickHandler();
+                    rightClick();
+                    startTimer();
+                    isShowAll = false;
+                    markedBomb = 0;
+                    isAllBombsMarkedVar = false;
+
+                }
+
+                $(document).ready(function () {
+
+                    setup();
+                    $('#setBtn').click(setup);
+
+                })
+
+                function rightClick() {
+                    $(".tile").on("contextmenu", function (e) {
+                        e.preventDefault();
+                        if (isShowAll) {
+                            return;
+                        }
+                        if (!$(this).hasClass("whiteBoard isBomb")) {
+                            if (!$(this).hasClass("marked")) {
+                                $(this).addClass("marked").removeClass("cover")
+                                markedBomb++;
+                            } else {
+                                $(this).addClass("cover").removeClass("marked")
+                            }
+                            checkWin();
+                        }
+                    });
+                }
+
+                function clickHandler() {
+                    $(".tile").on("click", function () {
+
+                        if (isShowAll) {
+                            return;
+                        }
+//                    $(this).removeClass("cover unopened").addClass("opened");
+                        if ($(this).hasClass("marked")) {
+                            $(this).removeClass("marked")
+                        }
+                        if ($(this).attr("src") == bomb) {
+                            if (timer) {
+                                clearInterval(timer);
+                                timer = null;
+                            }
+                            swal("Oops! You lose!", "Your total time spent is " + parseInt(totalSeconds / 60) + " m " + totalSeconds + " s.");
+                            $(this).each(function () {
+                                $(this).addClass("isBomb");
+                                $(".unopened").removeClass("cover");
+                            });
+                            $(".tile").removeClass("cover");
+                            clearInterval(timer);
+
+                        }
+//
+
+                        else if ($(this).attr("src") == whiteBoard) {
+                            var row = parseInt($(this).attr('row'));
+                            var col = parseInt($(this).attr('col'));
+                            dfs(row, col);
+                        }
+
+                        $(this).removeClass("cover unopened").addClass("opened");
+
+                        checkWin();
+                    })
+                }
+
+                function dfs(row, col) {
+                    if (row < 0 || row >= m) return;
+                    if (col < 0 || col >= n) return;
+                    if (array[row][col] != whiteBoard) return;
+
+                    var selector = '[row="' + row + '"][col="' + col + '"]';
+                    var cell = $(selector);
+                    if (!cell.hasClass('cover')) return;
+
+                    cell.removeClass("cover unopened").addClass("opened");
+
+                    dfs(row - 1, col);
+                    dfs(row + 1, col);
+                    dfs(row, col - 1);
+                    dfs(row, col + 1);
+                }
+
+                function isAllBombsMarked() {
+                    $(".marked").each(function () {
+                        if ($(this).attr("src") == bomb) {
+                            isAllBombsMarkedVar = true;
+                        } else {
+                            return false;
+                        }
+                    });
+                    return isAllBombsMarkedVar;
+                }
+
+                function checkWin() {
+                    if (markedBomb == k && isAllBombsMarked()) {
+                        swal("Good Job!", "You Win! Your total time spent is " + parseInt(totalSeconds / 60) + " m " + totalSeconds + " s.");
+                        $(".tile").removeClass("cover");
+                        clearInterval(timer);
+                    }
+                }
+
+
+                $("#showBtn").click(showAll);
+                function showAll() {
+                    isShowAll = true;
+                    if ($(".unopened").length != 0) {
+                        if ($(".tile").hasClass("marked")) {
+                            $(".marked").removeClass("marked").addClass("removedMark")
+                            $(".unopened").removeClass("cover").addClass("showed");
+
+                        } else {
+                            $(".unopened").removeClass("cover").addClass("showed");
+                        }
+                    }
+                }
+
+                $("#hideBtn").click(hide);
+                function hide() {
+                    isShowAll = false;
+                    if ($(".tile").hasClass("removedMark")) {
+                        $(".removedMark").addClass("marked").removeClass("showed");
+                        $(".showed").addClass("cover")
+
+                    } else {
+                        $(".showed").addClass("cover").removeClass("showed");
+                    }
+                }
+            }
+        )
+
+    </script>
+</head>
+<body style="text-align: center">
+<audio>
+    <source src="audio/BombSound.mp3" type="audio/mpeg" id="bombSound"/>
+    <source src="audio/clickSound.mp3" type="audio/mpeg" id="clickSound"/>
+</audio>
+<label>
+    <h1 style="color: red; margin-left: 50%;font-family: 'Russo One', sans-serif;">MineSweeper</h1>
+    <br>
+    <select id="gameSize">
+        <option size1="5" size2="6" value="5" selected>Mine 5 size 5*6</option>
+        <option size1="6" size2="8" value="10">Mine 10 size 6*8</option>
+        <option size1="8" size2="10" value="20">Mine 20 size 8*10</option>
+    </select>
+</label>
+<input id="setBtn" type="button" value="Setup" class="btn btn-warning"/>
+|
+<input id="showBtn" type="button" value="Show" class="btn btn-info" style="margin-left: 5px"/>
+<input id="hideBtn" type="button" value="Hide" class="btn btn-success" style="margin-left: 5px"/>
+<br><br>
+<div id="board" style="margin: 5px;"></div>
+<br>
+
+</body>
+<div style="background-color: red; width: 50px; margin:0 auto">
+    <label style="color: aliceblue" id="minutes">00</label><span style="color: aliceblue">:</span><label
+        style="color: aliceblue" id="seconds">00</label>
+</div>
+</html>
